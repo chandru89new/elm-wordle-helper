@@ -1,9 +1,10 @@
-module Main exposing (main)
+module Main exposing (..)
 
 import Array
+import Array.Extra as Array
 import Browser
 import Browser.Events as BEvents
-import Html exposing (Html, button, div, text)
+import Html exposing (Html, div, text)
 import Html.Attributes as Attr
 import Html.Events as Events
 import Http
@@ -114,6 +115,29 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div
+        [ Attr.style "padding" "2rem"
+        , Attr.style "display" "grid"
+        , Attr.style "grid-template-columns" "repeat(2, 500px)"
+        , Attr.style "grid-gap" "2rem"
+        ]
+        [ div [] [ viewPlayground model ]
+        , div [] [ viewResults model ]
+        ]
+
+
+viewResults : Model -> Html Msg
+viewResults model =
+    div [ Attr.style "border" "1px dotted gray", Attr.style "padding" "1rem" ]
+        [ div [ Attr.style "margin-bottom" "1rem" ] [ text "Candidates:" ]
+        , div
+            [ Attr.style "whitespace" "wrap" ]
+            [ text (String.join ", " (List.filter (isWordACandidate model.typedChars) model.words)) ]
+        ]
+
+
+viewPlayground : Model -> Html Msg
+viewPlayground model =
+    div
         [ Attr.style "display" "grid"
         , Attr.style "grid-template-columns" "repeat(5,48px)"
         , Attr.style "gap" "10px"
@@ -209,3 +233,99 @@ toggleStatus status =
 
         InPosition ->
             NotInWord
+
+
+hasExcludedChar : Array.Array Word -> String -> Bool
+hasExcludedChar excludedChars word =
+    Array.any (\c -> c.status == NotInWord && String.contains c.char word) excludedChars
+
+
+hasCharNotInPosition : { char : String, index : Int } -> String -> Bool
+hasCharNotInPosition { char, index } word =
+    if String.contains char word then
+        word
+            |> String.split ""
+            |> Array.fromList
+            |> Array.indexedMap
+                (\idx c -> c == char && (idx + 1) == index)
+            |> Array.any ((==) True)
+            |> not
+
+    else
+        False
+
+
+hasCharNotInPositionForAllChars : Array.Array { char : String, index : Int } -> String -> Bool
+hasCharNotInPositionForAllChars xs word =
+    Array.all (\x -> hasCharNotInPosition x word) xs
+
+
+hasCharInPosition : { char : String, index : Int } -> String -> Bool
+hasCharInPosition { char, index } word =
+    if String.contains char word then
+        word
+            |> String.split ""
+            |> Array.fromList
+            |> Array.indexedMap
+                (\idx c -> c == char && (idx + 1) == index)
+            |> Array.any ((==) True)
+
+    else
+        False
+
+
+hasCharInPositionForAllChars : Array.Array { char : String, index : Int } -> String -> Bool
+hasCharInPositionForAllChars xs word =
+    Array.all (\x -> hasCharInPosition x word) xs
+
+
+convertWordIntoIndexedChar : Word -> { char : String, index : Int }
+convertWordIntoIndexedChar { char, index } =
+    if modBy 5 index == 0 then
+        { char = char, index = 5 }
+
+    else
+        { char = char, index = modBy 5 index }
+
+
+isWordACandidate : Array.Array Word -> String -> Bool
+isWordACandidate wrds wordToCompare =
+    if hasExcludedChar wrds wordToCompare then
+        False
+
+    else
+        let
+            wordsInPosition =
+                Array.filter (\w -> w.status == InPosition) wrds
+
+            wordsNotInPosition =
+                Array.filter (\w -> w.status == NotInPosition) wrds
+        in
+        hasCharNotInPositionForAllChars (Array.map convertWordIntoIndexedChar wordsNotInPosition) wordToCompare && hasCharInPositionForAllChars (Array.map convertWordIntoIndexedChar wordsInPosition) wordToCompare
+
+
+
+-- tests and misc.
+
+
+testChars =
+    Array.fromList
+        [ { char = "f", index = 1 }
+        , { char = "a", index = 2 }
+        , { char = "t", index = 3 }
+        ]
+
+
+testWords =
+    Array.fromList
+        [ Word 1 "s" NotInPosition
+        , Word 2 "p" NotInWord
+        , Word 3 "p" NotInWord
+        , Word 4 "l" NotInWord
+        , Word 5 "e" NotInWord
+        , Word 6 "f" NotInWord
+        , Word 7 "a" NotInWord
+        , Word 8 "c" NotInWord
+        , Word 9 "t" NotInPosition
+        , Word 10 "s" NotInPosition
+        ]
