@@ -106,7 +106,7 @@ update msg model =
 
                 Ok wrds ->
                     ( { model
-                        | words = String.lines wrds
+                        | words = String.lines wrds |> List.concatMap (String.split " ")
                       }
                     , Cmd.none
                     )
@@ -186,7 +186,7 @@ getWords =
 
 
 wordsUrl =
-    "https://gist.githubusercontent.com/shmookey/b28e342e1b1756c4700f42f17102c2ff/raw/ed4c33a168027aa1e448c579c8383fe20a3a6225/WORDS"
+    "https://raw.githubusercontent.com/madalynrose/Words/master/assets/5-letter.txt"
 
 
 
